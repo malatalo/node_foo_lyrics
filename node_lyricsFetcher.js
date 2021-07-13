@@ -3,6 +3,7 @@ const fs = require("fs");
 const readline = require("readline");
 const mm = require("music-metadata");
 const { getLyrics } = require("genius-lyrics-api");
+const open = require("open");
 require("dotenv").config({ path: path.resolve(path.dirname(require.main.filename), ".env") });
 
 const rl = readline.createInterface({
@@ -51,6 +52,21 @@ const askForBetterNames = async ({ artist, title }) => {
   });
 };
 
+const askGoogle = ({artist, title}) => {
+  return new Promise(res => {
+    rl.question(`Ask Google? Y/n\n>`, async yn => {
+      if(yn === "y" || yn === "Y" || yn === "") {
+        await open(`http://www.google.com/search?q=${artist}+${title}+lyrics`);
+      }
+      res();
+    })
+  })
+}
+
+const reverseColorLog = s => {
+  console.log('\x1b[7m%s\x1b[0m', s)
+}
+
 const main = async () => {
   if (argArtist && argTitle) {
     fetchLyrics({ artist: argArtist, title: argTitle });
@@ -61,15 +77,16 @@ const main = async () => {
       const metadata = await mm.parseFile(path.join(dir, file));
       const { artist, title } = metadata.common;
       if (!artist || !title) {
-        console.log("Metadata missing for file:", file);
-        return;
+        reverseColorLog("Metadata missing for file:", file, "artist:", artist, "title:", title);
+        continue;
       }
+      console.log(`Fetching lyrics for: ${artist} | ${title}`)
       const lyrics = await fetchLyrics({ file, artist, title });
       if (lyrics) {
         writeLyrics({ file, lyrics });
-        console.log(`Wrote lyrics for: ${artist} | ${title}`);
+        console.log(`Wrote lyrics for:    ${artist} | ${title}`);
       } else {
-        console.log(`No lyrics found for: ${artist} | ${title}`);
+        reverseColorLog(`No lyrics found for: ${artist} | ${title}`)
         noLyricsFound.push({ file, artist, title });
       }
     }
@@ -86,12 +103,12 @@ const main = async () => {
         if (lyrics) {
           writeLyrics({ file: obj.file, lyrics });
           console.log(`Wrote lyrics for: ${answer.artist} | ${answer.title}`);
+          continue;
         } else {
           console.log(`No lyrics for: ${answer.artist} | ${answer.title}`);
         }
-      } else {
-        console.log("Artist & title are the same, not trying again")
       }
+      await askGoogle({artist: answer.artist, title: answer.title});
     }
     rl.close();
   }
