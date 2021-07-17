@@ -70,7 +70,13 @@ const reverseColorLog = (...strings) => {
 
 const main = async () => {
   if (argArtist && argTitle) {
-    fetchLyrics({ artist: argArtist, title: argTitle });
+    const lyrics = await fetchLyrics({ artist: argArtist, title: argTitle });
+    if (lyrics) {
+      console.log(lyrics)
+    } else {
+      console.log("No lyrics found")
+      await askGoogle({artist: argArtist, title: argTitle})
+    }
   } else {
     const noLyricsFound = [];
     const noMetadata = [];
@@ -141,11 +147,8 @@ const main = async () => {
       }
       await askGoogle({artist: answer.artist, title: answer.title});
     }
-
-    rl.close();
   }
-
-  console.log("\ndone");
+  rl.close();
 };
 
 console.log(`
