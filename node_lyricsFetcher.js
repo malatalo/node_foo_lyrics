@@ -63,8 +63,8 @@ const askGoogle = ({artist, title}) => {
   })
 }
 
-const reverseColorLog = s => {
-  console.log('\x1b[7m%s\x1b[0m', s)
+const reverseColorLog = (...strings) => {
+  console.log('\x1b[7m%s\x1b[0m', strings.join(" "))
 }
 
 const main = async () => {
