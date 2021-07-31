@@ -175,23 +175,37 @@ function _text(mode, x, y, w, h) {
 	this.rbtn_up = (x, y) => {
 		panel.m.AppendMenuItem(MF_STRING, 1200, 'Refresh');
 		panel.m.AppendMenuSeparator();
-		panel.m.AppendMenuItem(MF_STRING, 1230, 'Fixed width font');
-		panel.m.CheckMenuItem(1230, this.properties.fixed.enabled);
+		panel.m.AppendMenuItem(MF_STRING , 1337, '+');
+		panel.m.AppendMenuItem(MF_STRING , 1338, ' ');
+		panel.m.AppendMenuItem(MF_STRING , 1339, '-');
 		panel.m.AppendMenuSeparator();
+		panel.m.AppendMenuItem(MF_STRING , 1994, 'Fix lyrics');
 		panel.m.AppendMenuItem(MF_STRING , 1999, 'Open containing folder');
 		panel.m.AppendMenuSeparator();
 	}
 	
 	this.rbtn_up_done = (idx) => {
 		switch (idx) {
+		case 1337:
+			this.setRating(5);
+			break;
+		case 1338:
+			this.setRating("");
+			break;
+		case 1339:
+			this.setRating(1);
+			break;
 		case 1200:
 			this.filename = '';
 			panel.item_focus_change();
 			break;
-		case 1230:
-			this.properties.fixed.toggle();
-			this.update();
-			window.RepaintRect(this.x, this.y, this.w, this.h);
+		case 1994:
+			if (_isFile(panel.tf("$directory_path(%path%)\\%filename%.txt"))) {
+				_run(panel.tf("$directory_path(%path%)\\%filename%.txt"));
+			} else {
+				_run(panel.tf("$directory_path(%path%)"));
+			}
+			_run(`https://www.google.com/search?q=${ panel.tf("%artist%") }+${ panel.tf("%title%") }+lyrics`)
 			break;
 		case 1999:
 			if (_isFile(panel.tf("$directory_path(%path%)\\%filename%.txt"))) {
@@ -201,6 +215,12 @@ function _text(mode, x, y, w, h) {
 			}
 			break;
 		}
+	}
+
+	this.setRating = (value) => {
+		let obj = {MetaRating: value};
+		let handles = new FbMetadbHandleList(panel.metadb);
+		handles.UpdateFileInfoFromJSON(JSON.stringify(obj));
 	}
 	
 	this.key_down = (k) => {
@@ -334,10 +354,6 @@ function _panel(custom_background = false) {
 		this.s1 = window.CreatePopupMenu();
 		this.s2 = window.CreatePopupMenu();
 		this.s3 = window.CreatePopupMenu();
-		this.s10 = window.CreatePopupMenu();
-		this.s11 = window.CreatePopupMenu();
-		this.s12 = window.CreatePopupMenu();
-		this.s13 = window.CreatePopupMenu();
 		// panel 1-999
 		// object 1000+
 		if (object) {

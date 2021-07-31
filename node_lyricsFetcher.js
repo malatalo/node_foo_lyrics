@@ -57,7 +57,7 @@ const askGoogle = ({artist, title}) => {
   return new Promise(res => {
     rl.question(`Ask Google? Y/n\n>`, async yn => {
       if(yn === "y" || yn === "Y" || yn === "") {
-        await open(`http://www.google.com/search?q=${artist}+${title}+lyrics`);
+        await open(`https://www.google.com/search?q=${artist}+${title}+lyrics`);
       }
       res();
     })
