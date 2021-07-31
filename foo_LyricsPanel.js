@@ -194,7 +194,11 @@ function _text(mode, x, y, w, h) {
 			window.RepaintRect(this.x, this.y, this.w, this.h);
 			break;
 		case 1999:
-			_run(panel.tf("$directory_path(%path%)"));
+			if (_isFile(panel.tf("$directory_path(%path%)\\%filename%.txt"))) {
+				_explorer(panel.tf("$directory_path(%path%)\\%filename%.txt"));
+			} else {
+				_run(panel.tf("$directory_path(%path%)"));
+			}
 			break;
 		}
 	}
