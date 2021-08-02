@@ -4,6 +4,7 @@ const readline = require("readline");
 const mm = require("music-metadata");
 const { getLyrics } = require("genius-lyrics-api");
 const open = require("open");
+const { exec } = require("child_process");
 require("dotenv").config({ path: path.resolve(path.dirname(require.main.filename), ".env") });
 
 const rl = readline.createInterface({
@@ -13,8 +14,6 @@ const rl = readline.createInterface({
 
 const GENIOUS_API_KEY = process.env.GENIOUS_API_KEY;
 const dir = process.argv[2];
-const argArtist = process.argv[3];
-const argTitle = process.argv[4];
 
 const fetchLyrics = async ({ file, artist, title }) => {
   const options = {
@@ -33,13 +32,16 @@ const fetchLyrics = async ({ file, artist, title }) => {
   return lyrics.replace(/’/g, "'");
 };
 
+const getTxtFilePath = file =>
+  path.join(dir, file.replace(".flac", ".txt").replace(".wma", ".txt"));
+
 const writeLyrics = ({ file, lyrics }) => {
-  const lyricsPath = path.join(dir, file.replace(".flac", ".txt").replace(".wma", ".txt"));
-  fs.writeFileSync(lyricsPath, lyrics, 'latin1'); // latin1 because of Foobar
+  const lyricsPath = getTxtFilePath(file);
+  fs.writeFileSync(lyricsPath, lyrics, "latin1"); // latin1 because of Foobar
 };
 
 const askForBetterNames = async ({ file, artist, title }) => {
-  console.log("Current file:", file)
+  console.log("Current file:", file);
   return new Promise(async res => {
     rl.question(`Better name for artist: ${artist}\n>`, artistAnswer => {
       const fixedArtist = artistAnswer ? artistAnswer : artist;
@@ -53,100 +55,93 @@ const askForBetterNames = async ({ file, artist, title }) => {
   });
 };
 
-const askGoogle = ({artist, title}) => {
+const askGoogle = ({ file, artist, title }) => {
   return new Promise(res => {
     rl.question(`Ask Google? Y/n\n>`, async yn => {
-      if(yn === "y" || yn === "Y" || yn === "") {
+      if (yn === "y" || yn === "Y" || yn === "") {
+        const txtpath = getTxtFilePath(file);
+        exec(`code ${txtpath}`);
         await open(`https://www.google.com/search?q=${artist}+${title}+lyrics`);
       }
       res();
-    })
-  })
-}
+    });
+  });
+};
 
 const reverseColorLog = (...strings) => {
-  console.log('\x1b[7m%s\x1b[0m', strings.join(" "))
-}
+  console.log("\x1b[7m%s\x1b[0m", strings.join(" "));
+};
 
 const main = async () => {
-  if (argArtist && argTitle) {
-    const lyrics = await fetchLyrics({ artist: argArtist, title: argTitle });
+  const noLyricsFound = [];
+  const noMetadata = [];
+  const files = fs.readdirSync(dir).filter(f => f.includes("flac") || f.includes("wma"));
+  for (const file of files) {
+    const metadata = await mm.parseFile(path.join(dir, file));
+    const { artist, title } = metadata.common;
+    if (!artist || !title) {
+      reverseColorLog("Metadata missing for file:", file, "artist:", artist, "title:", title);
+      noMetadata.push({ file, artist, title });
+      continue;
+    }
+    console.log(`Fetching lyrics for: ${artist} | ${title}`);
+    const lyrics = await fetchLyrics({ file, artist, title });
     if (lyrics) {
-      console.log(lyrics)
+      writeLyrics({ file, lyrics });
+      console.log(`Wrote lyrics for:    ${artist} | ${title}`);
     } else {
-      console.log("No lyrics found")
-      await askGoogle({artist: argArtist, title: argTitle})
+      writeLyrics({ file, lyrics: "" });
+      reverseColorLog(`No lyrics found for: ${artist} | ${title}`);
+      noLyricsFound.push({ file, artist, title });
     }
-  } else {
-    const noLyricsFound = [];
-    const noMetadata = [];
-    const files = fs.readdirSync(dir).filter(f => f.includes("flac") || f.includes("wma"));
-    for (const file of files) {
-      const metadata = await mm.parseFile(path.join(dir, file));
-      const { artist, title } = metadata.common;
-      if (!artist || !title) {
-        reverseColorLog("Metadata missing for file:", file, "artist:", artist, "title:", title);
-        noMetadata.push({ file, artist, title });
-        continue;
-      }
-      console.log(`Fetching lyrics for: ${artist} | ${title}`)
-      const lyrics = await fetchLyrics({ file, artist, title });
+  }
+
+  if (noLyricsFound.length) {
+    console.log("\n\nNo lyrics found:");
+  }
+
+  for (const obj of noLyricsFound) {
+    console.log();
+    const answer = await askForBetterNames(obj);
+    if (answer.artist !== obj.artist || answer.title !== obj.title) {
+      const lyrics = await fetchLyrics({
+        file: obj.file,
+        artist: answer.artist,
+        title: answer.title
+      });
       if (lyrics) {
-        writeLyrics({ file, lyrics });
-        console.log(`Wrote lyrics for:    ${artist} | ${title}`);
+        writeLyrics({ file: obj.file, lyrics });
+        console.log(`Wrote lyrics for: ${answer.artist} | ${answer.title}`);
+        continue;
       } else {
-        reverseColorLog(`No lyrics found for: ${artist} | ${title}`)
-        noLyricsFound.push({ file, artist, title });
+        console.log(`No lyrics for: ${answer.artist} | ${answer.title}`);
       }
     }
+    await askGoogle({ file: obj.file, artist: answer.artist, title: answer.title });
+  }
 
-    if(noLyricsFound.length) {
-      console.log("\n\nNo lyrics found:")
-    }
+  if (noMetadata.length) {
+    console.log("\n\nNo metadata:");
+  }
 
-    for (const obj of noLyricsFound) {
-      console.log();
-      const answer = await askForBetterNames(obj);
-      if (answer.artist !== obj.artist || answer.title !== obj.title) {
-        const lyrics = await fetchLyrics({
-          file: obj.file,
-          artist: answer.artist,
-          title: answer.title
-        });
-        if (lyrics) {
-          writeLyrics({ file: obj.file, lyrics });
-          console.log(`Wrote lyrics for: ${answer.artist} | ${answer.title}`);
-          continue;
-        } else {
-          console.log(`No lyrics for: ${answer.artist} | ${answer.title}`);
-        }
+  for (const obj of noMetadata) {
+    console.log();
+    const answer = await askForBetterNames(obj);
+    if (answer.artist !== obj.artist || answer.title !== obj.title) {
+      const lyrics = await fetchLyrics({
+        file: obj.file,
+        artist: answer.artist,
+        title: answer.title
+      });
+      if (lyrics) {
+        writeLyrics({ file: obj.file, lyrics });
+        console.log(`Wrote lyrics for: ${answer.artist} | ${answer.title}`);
+        continue;
+      } else {
+        console.log(`No lyrics for: ${answer.artist} | ${answer.title}`);
       }
-      await askGoogle({artist: answer.artist, title: answer.title});
     }
-
-    if(noMetadata.length) {
-      console.log("\n\nNo metadata:")
-    }
-
-    for (const obj of noMetadata) {
-      console.log();
-      const answer = await askForBetterNames(obj);
-      if (answer.artist !== obj.artist || answer.title !== obj.title) {
-        const lyrics = await fetchLyrics({
-          file: obj.file,
-          artist: answer.artist,
-          title: answer.title
-        });
-        if (lyrics) {
-          writeLyrics({ file: obj.file, lyrics });
-          console.log(`Wrote lyrics for: ${answer.artist} | ${answer.title}`);
-          continue;
-        } else {
-          console.log(`No lyrics for: ${answer.artist} | ${answer.title}`);
-        }
-      }
-      await askGoogle({artist: answer.artist, title: answer.title});
-    }
+    await askGoogle({ file: obj.file, artist: answer.artist, title: answer.title });
   }
   rl.close();
 };
@@ -164,6 +159,6 @@ _______                   __  __                           __
                                        \|  \\__\| $$                                  
                                         \\$$    $$                                  
                                          \\$$$$$$                                   
-`)
+`);
 
 main();

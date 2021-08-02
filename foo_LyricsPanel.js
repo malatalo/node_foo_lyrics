@@ -1,5 +1,7 @@
 'use strict';
 
+const pathToDownloadVbs = "";
+
 // modified from text reader sample
 
 window.DefineScript('lyrics', {author:'author'});
@@ -205,7 +207,7 @@ function _text(mode, x, y, w, h) {
 			} else {
 				_run(panel.tf("$directory_path(%path%)"));
 			}
-			_run(`https://www.google.com/search?q=${ panel.tf("%artist%") }+${ panel.tf("%title%") }+lyrics`)
+			_runCmd('cscript //nologo ' + _q(pathToDownloadVbs) + ' ' + panel.tf("%artist%") + ' ' + panel.tf("%title%"), false);
 			break;
 		case 1999:
 			if (_isFile(panel.tf("$directory_path(%path%)\\%filename%.txt"))) {
