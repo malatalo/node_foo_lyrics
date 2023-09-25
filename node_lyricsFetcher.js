@@ -60,7 +60,7 @@ const askGoogle = ({ file, artist, title }) => {
     rl.question(`Ask Google? Y/n\n>`, async yn => {
       if (yn === "y" || yn === "Y" || yn === "") {
         const txtpath = getTxtFilePath(file);
-        exec(`code ${txtpath}`);
+        exec(`code "${txtpath}"`);
         await open(`https://www.google.com/search?q=${artist}+${title}+lyrics`);
       }
       res();
